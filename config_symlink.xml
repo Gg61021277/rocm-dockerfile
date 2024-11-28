@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<linkOperations>
+    <!--the markerFile is created in the container-->
+    <markerFile>/tmp/torch-symlink.marker</markerFile>
+    <!--the publicLinkDirectory is the mount point of the volume on the container where the home is mounted-->
+    <publicLinkDirectory>host</publicLinkDirectory>
+    <!--the publicFilesToExclude are the files on the host that will not be seen on the dockert container-->
+    <publicFilesToExclude>
+        <file>DOCKER-DIRS-ON-HOST</file>
+    </publicFilesToExclude>
+    <!--the privateHostDirectory is the directory on the host that will contain the docker container private data-->
+    <privateHostDirectory>DOCKER-DIRS-ON-HOST/private-rocm-torch</privateHostDirectory>
+    <!--the files in the private location that will not be seen in the docker-->
+    <privateFilesToExclude/>
+</linkOperations>

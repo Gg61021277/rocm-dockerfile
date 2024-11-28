@@ -1,0 +1,114 @@
+#I am using the specific version of the pytorch image. This affects the python version in conda
+FROM rocm/pytorch:rocm6.2.3_ubuntu22.04_py3.10_pytorch_release_2.3.0
+ARG USER
+ARG GID
+ARG UID
+ARG TIMEZONE
+
+RUN echo "USER=[${USER}] TGID : [${GID}] UID=[${UID}] TIMEZONE=[${TIMEZONE}]"
+    
+#set the user
+USER root
+WORKDIR /root
+RUN echo ${TIMEZONE} > /etc/timezone
+RUN apt-get update -q && \
+	export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends tzdata &&\
+    apt-get install -y --no-install-recommends readline-common && \
+    apt-get install -y --no-install-recommends console-setup
+
+#Some stuff i find useful
+RUN apt-get update -q && \
+	export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends tightvncserver &&\
+    apt-get install -y --no-install-recommends openssh-server &&\
+    apt-get install -y --no-install-recommends x11-apps &&\
+    apt-get install -y --no-install-recommends git &&\
+    apt-get install -y --no-install-recommends build-essential cmake git wget curl &&\
+    apt-get install -y --no-install-recommends g++ clang &&\
+    apt-get install -y --no-install-recommends golang &&\
+    apt-get install -y --no-install-recommends libopenblas-dev liblapack-dev libboost-all-dev libeigen3-dev &&\
+    apt-get install -y --no-install-recommends libatlas-base-dev libhdf5-dev hdf5-tools &&\
+    apt-get install -y --no-install-recommends protobuf-compiler libprotobuf-dev &&\
+    apt-get install -y --no-install-recommends clang-format clang-tidy lldb gdb &&\
+    apt-get install -y --no-install-recommends terminator &&\
+    apt-get install -y --no-install-recommends net-tools &&\
+    apt-get install -y --no-install-recommends htop &&\
+    apt-get install -y --no-install-recommends inotify-tools  &&\
+    apt-get install -y --no-install-recommends screen &&\
+    apt-get install -y --no-install-recommends gosu &&\
+    apt-get install -y --no-install-recommends apt-clone && \
+    apt-get install -y --no-install-recommends build-essential manpages-dev &&\
+    apt-get install -y --no-install-recommends iputils-ping dnsutils iptables
+
+#Get the latest cmake
+RUN apt-get update -q && \
+	export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends  cmake
+
+#Clean up
+RUN apt-get autoclean -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*   
+
+
+RUN dpkg-reconfigure -f noninteractive tzdata
+
+#The jenkins users is created by default in the pytorch image
+#Rehouse jenkins user from 1000 to 1992 ( Hopefully this is not used by any other user)
+RUN userdel jenkins
+#RUN groupdel jenkins
+RUN groupadd -g 1992 jenkins
+RUN useradd -u 1992 -g 1992 jenkins
+RUN find /var/lib/jenkins -user 1000 -print0 | xargs -0 chown 1992:1992
+
+#Add ${USER} user with the UID & GID. This should match the host user
+RUN echo "The value of GID : [${GID}] UID=[${UID}] USER=[${USER}]"
+RUN groupadd -g ${GID} ${USER}
+RUN useradd -u ${UID} -g ${GID} -m -s /bin/bash ${USER}
+RUN usermod -a -G sudo ${USER}
+RUN /bin/bash -c "echo -e '${USER}123\n${USER}123\nn' | passwd ${USER}"
+
+#ROCM groups to access without sudo password
+RUN groupmod -g 127 _ssh || groupadd -g 127 _ssh
+RUN groupmod -g 110 render || groupadd -g 110 render
+RUN usermod -a -G render ${USER}
+RUN newgrp render
+#Add ${USER} to SUDOERs
+COPY ./sudoers /etc/sudoers
+RUN chown root:root /etc/sudoers
+RUN chmod 0440 /etc/sudoers
+
+#Copy the basrc from the host to the docker image
+USER ${USER}
+WORKDIR /home/${USER}
+COPY --chown=${USER}:${USER} bashrc_torch /home/${USER}/.bashrc
+RUN chmod +x .bashrc
+RUN touch ./.Xauthority
+
+#Create the conda environment and install the pip packages in that environment
+RUN conda init
+RUN echo "source activate py_3.10" >> /home/${USER}/.bashrc
+#pip under conda py_3.10
+COPY --chown=${USER}:${USER} requirements-on-container-torch.txt /home/${USER}/requirements-on-container-torch.txt
+RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
+    pip install -r requirements-on-container-torch.txt -v
+RUN rm -rf /home/${USER}/.cache
+RUN rm /home/${USER}/requirements-on-container-torch.txt
+
+#This is the utility to symlink the home directories on host to the docker image home directories
+#This will allow the user to access the host directories from the docker image as if the user is on the host
+#like /home/${USER}
+#This will also backup the directories created in the docker image in its home to docker specific store
+COPY --chown=${USER}:${USER} ./docker-symlink.py /home/${USER}/docker-symlink.py
+COPY --chown=${USER}:${USER} ./config_symlink.xml /home/${USER}/config_symlink.xml
+RUN mkdir -p /home/${USER}/host
+
+#Enter docker as ${USER} via root. The entrypoint script will switch to the user ${USER}
+USER root
+COPY ./entrypointtorch.sh /entrypointtorch.sh
+RUN chmod +x /entrypointtorch.sh
+ENTRYPOINT ["/entrypointtorch.sh"]
+CMD ["bash"]
+

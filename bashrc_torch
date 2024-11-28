@@ -1,0 +1,11 @@
+#!/bin/bash 
+if [ -f ~/pnpng_torch_bash_extra ]; then
+    source /home/${USER}/pnpng_torch_bash_extra
+fi
+parse_git_branch() {
+ git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
+}
+export PS1_EXTRA=''
+alias CLEARPS1=`export PS1_EXTRA=''`
+PS1='${debian_chroot:+($debian_chroot)}\e[0;32m$(parse_git_branch)\e[m\u@rocm:\w${PS1_EXTRA}$ '
+export PROMPT_DIRTRIM=2

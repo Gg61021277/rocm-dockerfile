@@ -1,0 +1,60 @@
+#The BASE_IMAGE is passed as --build-arg, but it is checked first
+#and then replaced later by the --build-arg BASE_IMAGE value
+#so if it is set to other than a valid value, it will print a warning
+ARG BASE_IMAGE=ubuntu
+FROM ${BASE_IMAGE}:latest
+ARG BASE_IMAGE
+ARG USER
+ARG GID
+ARG UID
+RUN echo "USER=[${USER}] GID : [${GID}] UID=[${UID}] BASE_IMAGE:[${BASE_IMAGE}] "
+
+USER root
+RUN rm /etc/apt/sources.list.d/amdgpu.list
+RUN apt-get update -q && \
+	export DEBIAN_FRONTEND=noninteractive 
+#Add the apt install commands here
+
+#Clean up
+RUN apt-get autoclean -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*   
+
+
+# Ensure that D-Bus can run properly
+RUN mkdir -p /var/run/dbus && dbus-uuidgen > /var/run/dbus/machine-id
+RUN mkdir -p /run/user/${UID}
+RUN chown ${USER}:${USER}  /run/user/${UID}
+RUN chmod 0700 /run/user/${UID}
+USER ${USER}
+
+
+#Copy the bashrc from the host to the docker image
+WORKDIR /home/${USER}
+COPY --chown=${USER}:${USER} bashrc_torch /home/${USER}/.bashrc
+RUN chmod +x .bashrc
+
+#Install the pytorch image models in the conda environment
+RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
+pip install git+https://github.com/rwightman/pytorch-image-models.git -v 
+
+#This will symlink the home direcrories on host to the docker image home directories
+#This will allow the user to access the host directories from the docker image
+#like /home/${USER}
+
+USER ${USER}
+COPY --chown=${USER}:${USER} ./docker-symlink.py /home/${USER}/docker-symlink.py
+COPY --chown=${USER}:${USER} ./config_symlink.xml /home/${USER}/config_symlink.xml
+
+#Enter docker as ${USER} via root
+#so you can do rooty stuff before the ${USER} comes in play in the entrypoint file
+USER root
+WORKDIR /home/${USER}
+RUN touch ./.Xauthority
+# Copy the entrypoint script
+COPY ./entrypointtorch.sh /entrypointtorch.sh
+# Make the entrypoint script executable
+RUN chmod +x /entrypointtorch.sh
+ENTRYPOINT ["/entrypointtorch.sh"]
+CMD ["bash"]
