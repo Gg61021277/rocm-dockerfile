@@ -10,9 +10,10 @@ DOCKER_TIMEZONE="Asia/Seoul"
 OK_COLOR=\033[32;01m
 NO_COLOR=\033[0m
 # Include volumes configuration
-include volumes.conf
-# Construct the volume arguments dynamically from the configuration
-VOLUME_ARGS=$(foreach volume,$(VOLUMES),--volume=$(volume))
+VOLUMES_CONF = volumes.conf
+
+VOLUME_ARGS = $(shell awk '{print "--volume=" $$0}' $(VOLUMES_CONF))
+
 
 .PHONY: buildtorch-rocm-addon runtorch-rocm-addon help clean
 
