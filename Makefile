@@ -9,6 +9,7 @@ DOCKER_TIMEZONE="Asia/Seoul"
 
 OK_COLOR=\033[32;01m
 NO_COLOR=\033[0m
+
 # Include volumes configuration
 VOLUMES_CONF = volumes.conf
 
@@ -58,7 +59,7 @@ buildtorch-rocm-addon: .buildtorch-rocm.done
 
 .pipinstall.done:
 	@echo "$(OK_COLOR)==>$(NO_COLOR) Installing pip packages"
-	@pip install -r ./requirements.txt"  2>&1 | tee ./pip_install.log
+	@pip install -r ./requirements.txt  2>&1 | tee ./pip_install.log
 	@touch .pipinstall.done
 
 runtorch-rocm-addon:
