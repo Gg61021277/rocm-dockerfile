@@ -93,7 +93,11 @@ RUN echo "source activate py_3.10" >> /home/${USER}/.bashrc
 #pip under conda py_3.10
 COPY --chown=${USER}:${USER} requirements-on-container-torch.txt /home/${USER}/requirements-on-container-torch.txt
 RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
+    pip install --no-cache-dir ggtoolset markerpath
+
+RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
     pip install -r requirements-on-container-torch.txt -v
+
 RUN rm -rf /home/${USER}/.cache
 RUN rm /home/${USER}/requirements-on-container-torch.txt
 

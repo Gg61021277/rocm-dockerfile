@@ -169,6 +169,26 @@ def entry_main(args:argparse.Namespace)->None:
     #private dir is the directory that has the files that are private to the docker 
     #container and located in a directory relative to the home directory
     private_dir = os.path.join(public_dir,link_ops.private_host_directory)
+    # Check if private_dir exists, if not create it
+    if not os.path.exists(private_dir):
+        try:
+            os.makedirs(private_dir)
+            logger.debug(f"Created private directory: {private_dir}")
+        except Exception as e:
+            logger.error(f"Error creating private directory {private_dir}: {e}")
+            return
+    existing_dirs_list = [".local", ".cache", ".config"]  # Directories to create if they do not exist
+    #These dirs are created as they can exist on your local host and we are creating symlinks. 
+    #The symlink can add a path from your home directory to the docker container which is not
+    #what we want. So we create these directories in the private directory
+    for dir_name in existing_dirs_list:
+        dir_path = os.path.join(private_dir, dir_name)
+        if not os.path.exists(dir_path):
+            try:
+                os.makedirs(dir_path)
+                logger.debug(f"Created directory: {dir_path}")
+            except Exception as e:
+                logger.error(f"Error creating directory {dir_path}: {e}")
     logger.debug(f"Processing Private Link Directory: {private_dir}")
     create_symlinks(private_dir, current_dir, link_ops.private_files_to_exclude)
     logger.debug(f"Processing Public Link Directory: {public_dir}")

@@ -36,8 +36,8 @@ COPY --chown=${USER}:${USER} bashrc_torch /home/${USER}/.bashrc
 RUN chmod +x .bashrc
 
 #Install the pytorch image models in the conda environment
-RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
-pip install git+https://github.com/rwightman/pytorch-image-models.git -v 
+# RUN . /opt/conda/etc/profile.d/conda.sh && conda activate py_3.10 && \
+# pip install git+https://github.com/rwightman/pytorch-image-models.git -v 
 
 #This will symlink the home direcrories on host to the docker image home directories
 #This will allow the user to access the host directories from the docker image
